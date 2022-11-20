@@ -216,6 +216,7 @@ void AuctionHouseBot::addNewAuctions(Player *AHBplayer, AHBConfig *config)
     if (debug_Out)
         LOG_ERROR("module", "AHSeller: {} items", items);
 
+    auto trans = CharacterDatabase.BeginTransaction();
     // only insert a few at a time, so as not to peg the processor
     for (uint32 cnt = 1; cnt <= items; cnt++)
     {
@@ -417,7 +418,6 @@ void AuctionHouseBot::addNewAuctions(Player *AHBplayer, AHBConfig *config)
 
             uint32 dep =  sAuctionMgr->GetAuctionDeposit(ahEntry, etime, item, stackCount);
 
-            auto trans = CharacterDatabase.BeginTransaction();
             AuctionEntry* auctionEntry = new AuctionEntry();
             auctionEntry->Id = sObjectMgr->GenerateAuctionID();
             auctionEntry->houseId = config->GetAHID();
@@ -436,7 +436,6 @@ void AuctionHouseBot::addNewAuctions(Player *AHBplayer, AHBConfig *config)
             sAuctionMgr->AddAItem(item);
             auctionHouse->AddAuction(auctionEntry);
             auctionEntry->SaveToDB(trans);
-            CharacterDatabase.CommitTransaction(trans);
 
             switch(itemColor)
             {
@@ -487,7 +486,9 @@ void AuctionHouseBot::addNewAuctions(Player *AHBplayer, AHBConfig *config)
             }
         }
     }
+    CharacterDatabase.CommitTransaction(trans);
 }
+
 void AuctionHouseBot::addNewAuctionBuyerBotBid(Player *AHBplayer, AHBConfig *config, WorldSession *session)
 {
     if (!AHBBuyer)
@@ -567,42 +568,39 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player *AHBplayer, AHBConfig *con
         {
             if (prototype->Quality <= AHB_MAX_QUALITY)
             {
-                if (currentprice < prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
-                    bidMax = prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
-            }
-            else
+                if (currentprice < prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
+                    bidMax = prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
+            } else
             {
                 // quality is something it shouldn't be, let's get out of here
                 if (debug_Out)
                     LOG_ERROR("module", "AHBuyer: Quality {} not Supported", prototype->Quality);
-                    continue;
+                continue;
             }
-        }
-        else
+        } else
         {
             if (prototype->Quality <= AHB_MAX_QUALITY)
             {
-                if (currentprice < prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
-                    bidMax = prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
-            }
-            else
+                if (currentprice < prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
+                    bidMax = prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
+            } else
             {
                 // quality is something it shouldn't be, let's get out of here
                 if (debug_Out)
                     LOG_ERROR("module", "AHBuyer: Quality {} not Supported", prototype->Quality);
-                    continue;
+                continue;
             }
-        }        
+        }
 
         // check some special items, and do recalculating to their prices
         switch (prototype->Class)
         {
             // ammo
-        case 6:
-            bidMax = 0;
-            break;
-        default:
-            break;
+            case 6:
+                bidMax = 0;
+                break;
+            default:
+                break;
         }
 
         if (bidMax == 0)
@@ -667,7 +665,7 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player *AHBplayer, AHBConfig *con
                     CharacterDatabase.CommitTransaction(trans);
                     //pl->ModifyMoney(-int32(price));
                 }
-           }
+            }
 
             auction->bidder = AHBplayer->GetGUID();
             auction->bid = bidprice;
@@ -692,7 +690,7 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player *AHBplayer, AHBConfig *con
             sAuctionMgr->SendAuctionWonMail(auction, trans);
             auction->DeleteFromDB(trans);
 
-			sAuctionMgr->RemoveAItem(auction->item_guid);
+            sAuctionMgr->RemoveAItem(auction->item_guid);
             auctionHouse->RemoveAuction(auction);
             CharacterDatabase.CommitTransaction(trans);
         }
@@ -784,7 +782,7 @@ void AuctionHouseBot::Initialize()
     if (AHBSeller)
     {
         QueryResult results = QueryResult(NULL);
-        char npcQuery[] = "SELECT distinct item FROM npc_vendor";
+        char npcQuery[] = "SELECT DISTINCT item FROM npc_vendor WHERE maxcount = 0 AND ExtendedCost = 0";
         results = WorldDatabase.Query(npcQuery);
         if (results)
         {
