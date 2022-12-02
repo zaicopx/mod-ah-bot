@@ -367,14 +367,9 @@ void AuctionHouseBot::addNewAuctions(Player* AHBplayer, AHBConfig* config)
             if (randomPropertyId != 0)
                 item->SetItemRandomProperties(randomPropertyId);
 
-            uint64 buyoutPrice = 0;
+            uint64 buyoutPrice = getPrice(prototype, UseBuyPriceForSeller);
             uint64 bidPrice = 0;
             uint32 stackCount = 1;
-
-            if (SellMethod)
-                buyoutPrice = prototype->BuyPrice;
-            else
-                buyoutPrice = prototype->SellPrice;
 
             if (prototype->Quality <= AHB_MAX_QUALITY)
             {
@@ -563,32 +558,17 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player* AHBplayer, AHBConfig* con
         long double bidMax = 0;
 
         // check that bid has acceptable value and take bid based on vendorprice, stacksize and quality
-        if (BuyMethod)
+        if (prototype->Quality <= AHB_MAX_QUALITY)
         {
-            if (prototype->Quality <= AHB_MAX_QUALITY)
-            {
-                if (currentprice < prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
-                    bidMax = prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
-            } else
-            {
-                // quality is something it shouldn't be, let's get out of here
-                if (debug_Out)
-                    LOG_ERROR("module", "AHBuyer: Quality {} not Supported", prototype->Quality);
-                continue;
-            }
+            uint32 itemPrice = getPrice(prototype, UseBuyPriceForBuyer);
+            if (currentprice < itemPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
+                bidMax = itemPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
         } else
         {
-            if (prototype->Quality <= AHB_MAX_QUALITY)
-            {
-                if (currentprice < prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
-                    bidMax = prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
-            } else
-            {
-                // quality is something it shouldn't be, let's get out of here
-                if (debug_Out)
-                    LOG_ERROR("module", "AHBuyer: Quality {} not Supported", prototype->Quality);
-                continue;
-            }
+            // quality is something it shouldn't be, let's get out of here
+            if (debug_Out)
+                LOG_ERROR("module", "AHBuyer: Quality {} not Supported", prototype->Quality);
+            continue;
         }
 
         // check some special items, and do recalculating to their prices
@@ -693,6 +673,16 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player* AHBplayer, AHBConfig* con
             CharacterDatabase.CommitTransaction(trans);
         }
     }
+}
+
+uint32 AuctionHouseBot::getPrice(const ItemTemplate* item, bool useBuyPrice)
+{
+    if (useBuyPrice)
+    {
+        return item->BuyPrice != 0 ? item->BuyPrice : item->SellPrice;
+    }
+
+    return item->SellPrice != 0 ? item->SellPrice : item->BuyPrice;
 }
 
 void AuctionHouseBot::Update()
@@ -859,15 +849,8 @@ void AuctionHouseBot::Initialize()
                     break;
             }
 
-            if (SellMethod)
-            {
-                if (itr->second.BuyPrice == 0)
-                    continue;
-            } else
-            {
-                if (itr->second.SellPrice == 0)
-                    continue;
-            }
+            if (getPrice(&itr->second) == 0)
+                continue;
 
             if (itr->second.Quality > 6)
                 continue;
@@ -1364,8 +1347,8 @@ void AuctionHouseBot::InitializeConfiguration()
 
     AHBSeller = sConfigMgr->GetOption<bool>("AuctionHouseBot.EnableSeller", false);
     AHBBuyer = sConfigMgr->GetOption<bool>("AuctionHouseBot.EnableBuyer", false);
-    SellMethod = sConfigMgr->GetOption<bool>("AuctionHouseBot.UseBuyPriceForSeller", false);
-    BuyMethod = sConfigMgr->GetOption<bool>("AuctionHouseBot.UseBuyPriceForBuyer", false);
+    UseBuyPriceForSeller = sConfigMgr->GetOption<bool>("AuctionHouseBot.UseBuyPriceForSeller", false);
+    UseBuyPriceForBuyer = sConfigMgr->GetOption<bool>("AuctionHouseBot.UseBuyPriceForBuyer", false);
 
     AHBplayerAccount = sConfigMgr->GetOption<uint32>("AuctionHouseBot.Account", 0);
     AHBplayerGUID = sConfigMgr->GetOption<uint32>("AuctionHouseBot.GUID", 0);

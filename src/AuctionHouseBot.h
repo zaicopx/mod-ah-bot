@@ -1157,8 +1157,8 @@ private:
 
     bool AHBSeller;
     bool AHBBuyer;
-    bool BuyMethod;
-    bool SellMethod;
+    bool UseBuyPriceForBuyer;
+    bool UseBuyPriceForSeller;
 
     uint32 AHBplayerAccount;
     ObjectGuid::LowType AHBplayerGUID;
@@ -1233,8 +1233,8 @@ private:
     inline uint32 minValue(uint32 a, uint32 b) { return a <= b ? a : b; };
     void addNewAuctions(Player *AHBplayer, AHBConfig *config);
     void addNewAuctionBuyerBotBid(Player *AHBplayer, AHBConfig *config, WorldSession *session);
+    static uint32 getPrice(const ItemTemplate* item, bool useBuyPrice = false);
 
-//    friend class ACE_Singleton<AuctionHouseBot, ACE_Null_Mutex>;
     AuctionHouseBot();
 
 public:
