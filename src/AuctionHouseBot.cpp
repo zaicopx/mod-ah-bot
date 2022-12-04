@@ -679,10 +679,10 @@ uint32 AuctionHouseBot::getPrice(const ItemTemplate* item, bool useBuyPrice)
 {
     if (useBuyPrice)
     {
-        return item->BuyPrice != 0 ? item->BuyPrice : item->SellPrice;
+        return item->BuyPrice != 0 ? item->BuyPrice : (item->SellPrice * 5);
     }
 
-    return item->SellPrice != 0 ? item->SellPrice : item->BuyPrice;
+    return item->SellPrice != 0 ? item->SellPrice : (item->BuyPrice / 5);
 }
 
 void AuctionHouseBot::Update()
