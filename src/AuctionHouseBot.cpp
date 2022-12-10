@@ -134,7 +134,6 @@ void AuctionHouseBot::addNewAuctions(Player* AHBplayer, AHBConfig* config)
 
     if (maxItems == 0)
     {
-        //if (debug_Out) sLog->outString( "AHSeller: Auctions disabled");
         return;
     }
 
@@ -192,11 +191,6 @@ void AuctionHouseBot::addNewAuctions(Player* AHBplayer, AHBConfig* config)
     uint32 purpleIcount = config->GetPercents(AHB_PURPLE_I);
     uint32 orangeIcount = config->GetPercents(AHB_ORANGE_I);
     uint32 yellowIcount = config->GetPercents(AHB_YELLOW_I);
-/*    uint32 total = greyTGcount + whiteTGcount + greenTGcount + blueTGcount
-        + purpleTGcount + orangeTGcount + yellowTGcount
-        + whiteIcount + greenIcount + blueIcount + purpleIcount
-        + orangeIcount + yellowIcount;
-*/
     uint32 greyTGoods = config->GetItemCounts(AHB_GREY_TG);
     uint32 whiteTGoods = config->GetItemCounts(AHB_WHITE_TG);
     uint32 greenTGoods = config->GetItemCounts(AHB_GREEN_TG);
@@ -367,18 +361,23 @@ void AuctionHouseBot::addNewAuctions(Player* AHBplayer, AHBConfig* config)
             if (randomPropertyId != 0)
                 item->SetItemRandomProperties(randomPropertyId);
 
-            uint64 buyoutPrice = getPrice(prototype, UseBuyPriceForSeller);
+            uint64 buyoutPrice = getPrice(prototype, UseBuyPriceForSeller) * getCustomScaling(prototype) / 100;
             uint64 bidPrice = 0;
             uint32 stackCount = 1;
 
             if (prototype->Quality <= AHB_MAX_QUALITY)
             {
-                if (config->GetMaxStack(prototype->Quality) > 1 && item->GetMaxStackCount() > 1)
-                    stackCount = urand(1, minValue(item->GetMaxStackCount(), config->GetMaxStack(prototype->Quality)));
-                else if (config->GetMaxStack(prototype->Quality) == 0 && item->GetMaxStackCount() > 1)
-                    stackCount = urand(1, item->GetMaxStackCount());
-                else
-                    stackCount = 1;
+                if (item->GetMaxStackCount() > 1 && prototype->Class != ITEM_CLASS_GLYPH)
+                {
+                    if (config->GetMaxStack(prototype->Quality) > 1)
+                    {
+                        stackCount = urand(1, minValue(item->GetMaxStackCount(), config->GetMaxStack(prototype->Quality)));
+                    }
+                    else
+                    {
+                        stackCount = urand(1, item->GetMaxStackCount());
+                    }
+                }
                 buyoutPrice *= urand(config->GetMinPrice(prototype->Quality), config->GetMaxPrice(prototype->Quality));
                 buyoutPrice /= 100;
                 bidPrice = buyoutPrice * urand(config->GetMinBidPrice(prototype->Quality), config->GetMaxBidPrice(prototype->Quality));
@@ -560,7 +559,7 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player* AHBplayer, AHBConfig* con
         // check that bid has acceptable value and take bid based on vendorprice, stacksize and quality
         if (prototype->Quality <= AHB_MAX_QUALITY)
         {
-            uint32 itemPrice = getPrice(prototype, UseBuyPriceForBuyer);
+            uint32 itemPrice = getPrice(prototype, UseBuyPriceForBuyer) * getCustomScaling(prototype) / 100;
             if (currentprice < itemPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
                 bidMax = itemPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
         } else
@@ -683,6 +682,27 @@ uint32 AuctionHouseBot::getPrice(const ItemTemplate* item, bool useBuyPrice)
     }
 
     return item->SellPrice != 0 ? item->SellPrice : (item->BuyPrice / 5);
+}
+
+uint32 AuctionHouseBot::getCustomScaling(const ItemTemplate* item)
+{
+    if (item->Class == ITEM_CLASS_GLYPH)
+    {
+        return 25000;
+    }
+
+    if (item->SubClass == ITEM_SUBCLASS_ENCHANTING)
+    {
+        switch (item->Quality)
+        {
+            case ITEM_QUALITY_UNCOMMON:
+                return 25;
+            case ITEM_QUALITY_RARE:
+                return 80;
+        }
+    }
+
+    return 100;
 }
 
 void AuctionHouseBot::Update()
