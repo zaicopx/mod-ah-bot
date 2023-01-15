@@ -75,6 +75,8 @@ AuctionHouseBot::AuctionHouseBot()
     DisableKeys = false;
     DisableDuration = false;
     DisableBOP_Or_Quest_NoReqLevel = false;
+    DisablePets = false;
+    DisableMounts = false;
 
     DisableWarriorItems = false;
     DisablePaladinItems = false;
@@ -367,17 +369,7 @@ void AuctionHouseBot::addNewAuctions(Player* AHBplayer, AHBConfig* config)
 
             if (prototype->Quality <= AHB_MAX_QUALITY)
             {
-                if (item->GetMaxStackCount() > 1 && prototype->Class != ITEM_CLASS_GLYPH)
-                {
-                    if (config->GetMaxStack(prototype->Quality) > 1)
-                    {
-                        stackCount = urand(1, minValue(item->GetMaxStackCount(), config->GetMaxStack(prototype->Quality)));
-                    }
-                    else
-                    {
-                        stackCount = urand(1, item->GetMaxStackCount());
-                    }
-                }
+                stackCount = getMaxStackCount(config, item, prototype);
                 buyoutPrice *= urand(config->GetMinPrice(prototype->Quality), config->GetMaxPrice(prototype->Quality));
                 buyoutPrice /= 100;
                 bidPrice = buyoutPrice * urand(config->GetMinBidPrice(prototype->Quality), config->GetMaxBidPrice(prototype->Quality));
@@ -480,6 +472,31 @@ void AuctionHouseBot::addNewAuctions(Player* AHBplayer, AHBConfig* config)
         }
     }
     CharacterDatabase.CommitTransaction(trans);
+}
+
+uint32 AuctionHouseBot::getMaxStackCount(AHBConfig* config, const Item* item, const ItemTemplate* prototype)
+{
+    if (item->GetMaxStackCount() == 1)
+    {
+        return 1;
+    }
+
+    if (prototype->Class == ITEM_CLASS_GLYPH)
+    {
+        return 1;
+    }
+
+    if (prototype->Class == ITEM_CLASS_CONSUMABLE && prototype->SubClass == ITEM_SUBCLASS_ITEM_ENHANCEMENT)
+    {
+        return 1;
+    }
+
+    if (config->GetMaxStack(prototype->Quality) > 1)
+    {
+       return urand(1, minValue(item->GetMaxStackCount(), config->GetMaxStack(prototype->Quality)));
+    }
+
+    return urand(1, item->GetMaxStackCount());
 }
 
 void AuctionHouseBot::addNewAuctionBuyerBotBid(Player* AHBplayer, AHBConfig* config, WorldSession* session)
@@ -676,12 +693,24 @@ void AuctionHouseBot::addNewAuctionBuyerBotBid(Player* AHBplayer, AHBConfig* con
 
 uint32 AuctionHouseBot::getPrice(const ItemTemplate* item, bool useBuyPrice)
 {
+    uint32 price = 0;
+
     if (useBuyPrice)
     {
-        return item->BuyPrice != 0 ? item->BuyPrice : (item->SellPrice * 5);
+        price = item->BuyPrice != 0 ? item->BuyPrice : (item->SellPrice * 5);
+    }
+    else
+    {
+        price = item->SellPrice != 0 ? item->SellPrice : (item->BuyPrice / 5);
     }
 
-    return item->SellPrice != 0 ? item->SellPrice : (item->BuyPrice / 5);
+
+    if (price == 0 && item->Class == ITEM_CLASS_CONSUMABLE && item->SubClass == ITEM_SUBCLASS_ITEM_ENHANCEMENT) {
+
+        price = 500 * item->ItemLevel - 250;
+    }
+
+    return price;
 }
 
 uint32 AuctionHouseBot::getCustomScaling(const ItemTemplate* item)
@@ -966,8 +995,10 @@ void AuctionHouseBot::Initialize()
                         isLootTG = true;
                 }
                 if ((!isLootTG) && (!isVendorTG))
+                {
                     LOG_ERROR("module", "AuctionHouseBot: Item {} IS OTHER_TG", itr->second.ItemId);
-                continue;
+                    continue;
+                }
             }
 
             // Disable items by Id
@@ -1048,6 +1079,22 @@ void AuctionHouseBot::Initialize()
             {
                 if (debug_Out_Filters)
                     LOG_ERROR("module", "AuctionHouseBot: Item {} disabled (BOP or BQI and Required Level is less than Item Level)", itr->second.ItemId);
+                continue;
+            }
+
+            // Disable items that are pets
+            if (DisablePets && itr->second.Class == ITEM_CLASS_MISC && itr->second.SubClass == ITEM_SUBCLASS_JUNK_PET)
+            {
+                if (debug_Out_Filters)
+                    LOG_ERROR("module", "AuctionHouseBot: Item {} disabled (Pet)", itr->second.ItemId);
+                continue;
+            }
+
+            // Disable items that are mounts
+            if (DisableMounts && itr->second.Class == ITEM_CLASS_MISC && itr->second.SubClass == ITEM_SUBCLASS_JUNK_MOUNT)
+            {
+                if (debug_Out_Filters)
+                    LOG_ERROR("module", "AuctionHouseBot: Item {} disabled (Mount)", itr->second.ItemId);
                 continue;
             }
 
@@ -1398,6 +1445,8 @@ void AuctionHouseBot::InitializeConfiguration()
     DisableKeys = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisableKeys", false);
     DisableDuration = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisableDuration", false);
     DisableBOP_Or_Quest_NoReqLevel = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisableBOP_Or_Quest_NoReqLevel", false);
+    DisablePets = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisablePets", false);
+    DisableMounts = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisableMounts", false);
 
     DisableWarriorItems = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisableWarriorItems", false);
     DisablePaladinItems = sConfigMgr->GetOption<bool>("AuctionHouseBot.DisablePaladinItems", false);

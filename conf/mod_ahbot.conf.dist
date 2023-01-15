@@ -130,6 +130,14 @@ AuctionHouseBot.ItemsPerCycle = 200
 #        (May need further refinement)
 #    Default 0 (False)
 #
+#    AuctionHouseBot.DisablePets
+#        Disable Items that are pets
+#    Default 0 (False)
+#
+#    AuctionHouseBot.DisableMounts
+#        Disable Items that are mounts
+#    Default 0 (False)
+#
 ###############################################################################
 
 AuctionHouseBot.VendorItems = 0
@@ -152,6 +160,8 @@ AuctionHouseBot.DisableLootable = 0
 AuctionHouseBot.DisableKeys = 0
 AuctionHouseBot.DisableDuration = 0
 AuctionHouseBot.DisableBOP_Or_Quest_NoReqLevel = 0
+AuctionHouseBot.DisablePets = 0
+AuctionHouseBot.DisableMounts = 0
 
 ###############################################################################
 # AUCTION HOUSE BOT FILTERS PART 2

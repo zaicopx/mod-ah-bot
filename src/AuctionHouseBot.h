@@ -1106,6 +1106,8 @@ private:
     bool DisableKeys;
     bool DisableDuration;
     bool DisableBOP_Or_Quest_NoReqLevel;
+    bool DisablePets;
+    bool DisableMounts;
 
     bool DisableWarriorItems;
     bool DisablePaladinItems;
@@ -1185,6 +1187,8 @@ public:
 
     ObjectGuid::LowType GetAHBplayerGUID()
     { return AHBplayerGUID; };
+
+    uint32 getMaxStackCount(AHBConfig* config, const Item* item, const ItemTemplate* prototype);
 };
 
 #define auctionbot AuctionHouseBot::instance()
